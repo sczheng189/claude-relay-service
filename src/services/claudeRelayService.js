@@ -694,43 +694,22 @@ class ClaudeRelayService {
             )
           }
         }
-        // 检查是否为403状态码（禁止访问）
-        // 注意：如果进行了重试，retryCount > 0；这里的 403 是重试后最终的结果
-        else if (response.statusCode === 403) {
-          logger.error(
-            `🚫 Forbidden error (403) detected for account ${accountId}${retryCount > 0 ? ` after ${retryCount} retries` : ''}, marking as blocked`
-          )
-          await unifiedClaudeScheduler.markAccountBlocked(accountId, accountType, sessionHash)
-        }
-        // 检查是否返回组织被禁用错误（400状态码）
-        else if (organizationDisabledError) {
-          logger.error(
-            `🚫 Organization disabled error (400) detected for account ${accountId}, marking as blocked`
-          )
-          await unifiedClaudeScheduler.markAccountBlocked(accountId, accountType, sessionHash)
-        }
-        // 检查是否为529状态码（服务过载）
-        else if (response.statusCode === 529) {
-          logger.warn(`🚫 Overload error (529) detected for account ${accountId}`)
-
-          // 检查是否启用了529错误处理
-          if (config.claude.overloadHandling.enabled > 0) {
-            try {
-              await claudeAccountService.markAccountOverloaded(accountId)
-              logger.info(
-                `🚫 Account ${accountId} marked as overloaded for ${config.claude.overloadHandling.enabled} minutes`
-              )
-            } catch (overloadError) {
-              logger.error(`❌ Failed to mark account as overloaded: ${accountId}`, overloadError)
-            }
-          } else {
-            logger.info(`🚫 529 error handling is disabled, skipping account overload marking`)
-          }
-        }
         // 检查是否为5xx状态码
         else if (response.statusCode >= 500 && response.statusCode < 600) {
           logger.warn(`🔥 Server error (${response.statusCode}) detected for account ${accountId}`)
-          await this._handleServerError(accountId, response.statusCode, sessionHash)
+          // 记录5xx错误
+          await claudeAccountService.recordServerError(accountId, response.statusCode)
+          // 检查是否需要标记为临时错误状态（连续3次500）
+          const errorCount = await claudeAccountService.getServerErrorCount(accountId)
+          logger.info(
+            `🔥 Account ${accountId} has ${errorCount} consecutive 5xx errors in the last 5 minutes`
+          )
+          if (errorCount >= 3) {
+            logger.error(
+              `❌ Account ${accountId} exceeded 5xx error threshold (${errorCount} errors), marking as temp_error`
+            )
+            await claudeAccountService.markAccountTempError(accountId, sessionHash)
+          }
         }
         // 检查是否为429状态码
         else if (response.statusCode === 429) {
@@ -825,27 +804,6 @@ class ClaudeRelayService {
           }
         }
       } else if (response.statusCode === 200 || response.statusCode === 201) {
-        // 提取5小时会话窗口状态
-        // 使用大小写不敏感的方式获取响应头
-        const get5hStatus = (headers) => {
-          if (!headers) {
-            return null
-          }
-          // HTTP头部名称不区分大小写，需要处理不同情况
-          return (
-            headers['anthropic-ratelimit-unified-5h-status'] ||
-            headers['Anthropic-Ratelimit-Unified-5h-Status'] ||
-            headers['ANTHROPIC-RATELIMIT-UNIFIED-5H-STATUS']
-          )
-        }
-
-        const sessionWindowStatus = get5hStatus(response.headers)
-        if (sessionWindowStatus) {
-          logger.info(`📊 Session window status for account ${accountId}: ${sessionWindowStatus}`)
-          // 保存会话窗口状态到账户数据
-          await claudeAccountService.updateSessionWindowStatus(accountId, sessionWindowStatus)
-        }
-
         // 请求成功，清除401和500错误计数
         await this.clearUnauthorizedErrors(accountId)
         await claudeAccountService.clearInternalErrors(accountId)
@@ -1872,196 +1830,46 @@ class ClaudeRelayService {
         method: 'POST',
         headers,
         agent: proxyAgent,
-        timeout: config.requestTimeout || 600000
+        timeout: config.proxy.timeout
       }
 
-      const req = https.request(options, async (res) => {
+      // 如果客户端没有提供 User-Agent，使用默认值
+      if (!options.headers['User-Agent'] && !options.headers['user-agent']) {
+        options.headers['User-Agent'] = 'claude-cli/1.0.57 (external, cli)'
+      }
+
+      // 使用自定义的 betaHeader 或默认值
+      const betaHeader =
+        requestOptions?.betaHeader !== undefined ? requestOptions.betaHeader : this.betaHeader
+      if (betaHeader) {
+        options.headers['anthropic-beta'] = betaHeader
+      }
+
+      const req = https.request(options, (res) => {
         logger.debug(`🌊 Claude stream response status: ${res.statusCode}`)
 
         // 错误响应处理
         if (res.statusCode !== 200) {
-          if (res.statusCode === 429) {
-            const resetHeader = res.headers
-              ? res.headers['anthropic-ratelimit-unified-reset']
-              : null
-            const parsedResetTimestamp = resetHeader ? parseInt(resetHeader, 10) : NaN
-
-            if (isOpusModelRequest) {
-              if (!Number.isNaN(parsedResetTimestamp)) {
-                await claudeAccountService.markAccountOpusRateLimited(
-                  accountId,
-                  parsedResetTimestamp
-                )
-                logger.warn(
-                  `🚫 [Stream] Account ${accountId} hit Opus limit, resets at ${new Date(parsedResetTimestamp * 1000).toISOString()}`
-                )
-              }
-
-              if (isDedicatedOfficialAccount) {
-                const limitMessage = this._buildOpusLimitMessage(parsedResetTimestamp)
-                if (!responseStream.headersSent) {
-                  responseStream.status(403)
-                  responseStream.setHeader('Content-Type', 'application/json')
-                }
-                responseStream.write(
-                  JSON.stringify({
-                    error: 'opus_weekly_limit',
-                    message: limitMessage
-                  })
-                )
-                responseStream.end()
-                res.resume()
-                resolve()
-                return
-              }
-            } else {
-              const rateLimitResetTimestamp = Number.isNaN(parsedResetTimestamp)
-                ? null
-                : parsedResetTimestamp
-              await unifiedClaudeScheduler.markAccountRateLimited(
-                accountId,
-                accountType,
-                sessionHash,
-                rateLimitResetTimestamp
-              )
-              logger.warn(`🚫 [Stream] Rate limit detected for account ${accountId}, status 429`)
-
-              if (isDedicatedOfficialAccount) {
-                const limitMessage = this._buildStandardRateLimitMessage(
-                  rateLimitResetTimestamp || account?.rateLimitEndAt
-                )
-                if (!responseStream.headersSent) {
-                  responseStream.status(403)
-                  responseStream.setHeader('Content-Type', 'application/json')
-                }
-                responseStream.write(
-                  JSON.stringify({
-                    error: 'upstream_rate_limited',
-                    message: limitMessage
-                  })
-                )
-                responseStream.end()
-                res.resume()
-                resolve()
-                return
-              }
-            }
-          }
-
-          // 🔄 403 重试机制（必须在设置 res.on('data')/res.on('end') 之前处理）
-          // 否则重试时旧响应的 on('end') 会与新请求产生竞态条件
-          if (res.statusCode === 403) {
-            const canRetry =
-              this._shouldRetryOn403(accountType) &&
-              retryCount < maxRetries &&
-              !responseStream.headersSent
-
-            if (canRetry) {
-              logger.warn(
-                `🔄 [Stream] 403 error for account ${accountId}, retry ${retryCount + 1}/${maxRetries} after 2s`
-              )
-              // 消费当前响应并销毁请求
-              res.resume()
-              req.destroy()
-
-              // 等待 2 秒后递归重试
-              await this._sleep(2000)
-
-              try {
-                // 递归调用自身进行重试
-                // 🧹 从 bodyStore 获取字符串用于重试
-                if (
-                  !requestOptions.bodyStoreId ||
-                  !this.bodyStore.has(requestOptions.bodyStoreId)
-                ) {
-                  throw new Error('529 retry requires valid bodyStoreId')
-                }
-                let retryBody
-                try {
-                  retryBody = JSON.parse(this.bodyStore.get(requestOptions.bodyStoreId))
-                } catch (parseError) {
-                  logger.error(`❌ Failed to parse body for 529 retry: ${parseError.message}`)
-                  throw new Error(`529 retry body parse failed: ${parseError.message}`)
-                }
-                const retryResult = await this._makeClaudeStreamRequestWithUsageCapture(
-                  retryBody,
-                  accessToken,
-                  proxyAgent,
-                  clientHeaders,
-                  responseStream,
-                  usageCallback,
-                  accountId,
-                  accountType,
-                  sessionHash,
-                  streamTransformer,
-                  requestOptions,
-                  isDedicatedOfficialAccount,
-                  onResponseStart,
-                  retryCount + 1
-                )
-                resolve(retryResult)
-              } catch (retryError) {
-                reject(retryError)
-              }
-              return // 重要：提前返回，不设置后续的错误处理器
-            }
-          }
-
           // 将错误处理逻辑封装在一个异步函数中
           const handleErrorResponse = async () => {
-            if (res.statusCode === 401) {
-              logger.warn(`🔐 [Stream] Unauthorized error (401) detected for account ${accountId}`)
-
-              await this.recordUnauthorizedError(accountId)
-
-              const errorCount = await this.getUnauthorizedErrorCount(accountId)
-              logger.info(
-                `🔐 [Stream] Account ${accountId} has ${errorCount} consecutive 401 errors in the last 5 minutes`
-              )
-
-              if (errorCount >= 1) {
-                logger.error(
-                  `❌ [Stream] Account ${accountId} encountered 401 error (${errorCount} errors), marking as unauthorized`
-                )
-                await unifiedClaudeScheduler.markAccountUnauthorized(
-                  accountId,
-                  accountType,
-                  sessionHash
-                )
-              }
-            } else if (res.statusCode === 403) {
-              // 403 处理：走到这里说明重试已用尽或不适用重试，直接标记 blocked
-              // 注意：重试逻辑已在 handleErrorResponse 外部提前处理
-              logger.error(
-                `🚫 [Stream] Forbidden error (403) detected for account ${accountId}${retryCount > 0 ? ` after ${retryCount} retries` : ''}, marking as blocked`
-              )
-              await unifiedClaudeScheduler.markAccountBlocked(accountId, accountType, sessionHash)
-            } else if (res.statusCode === 529) {
-              logger.warn(`🚫 [Stream] Overload error (529) detected for account ${accountId}`)
-
-              // 检查是否启用了529错误处理
-              if (config.claude.overloadHandling.enabled > 0) {
-                try {
-                  await claudeAccountService.markAccountOverloaded(accountId)
-                  logger.info(
-                    `🚫 [Stream] Account ${accountId} marked as overloaded for ${config.claude.overloadHandling.enabled} minutes`
-                  )
-                } catch (overloadError) {
-                  logger.error(
-                    `❌ [Stream] Failed to mark account as overloaded: ${accountId}`,
-                    overloadError
-                  )
-                }
-              } else {
-                logger.info(
-                  `🚫 [Stream] 529 error handling is disabled, skipping account overload marking`
-                )
-              }
-            } else if (res.statusCode >= 500 && res.statusCode < 600) {
+            // 增加对5xx错误的处理
+            if (res.statusCode >= 500 && res.statusCode < 600) {
               logger.warn(
                 `🔥 [Stream] Server error (${res.statusCode}) detected for account ${accountId}`
               )
-              await this._handleServerError(accountId, res.statusCode, sessionHash, '[Stream]')
+              // 记录5xx错误
+              await claudeAccountService.recordServerError(accountId, res.statusCode)
+              // 检查是否需要标记为临时错误状态（连续3次500）
+              const errorCount = await claudeAccountService.getServerErrorCount(accountId)
+              logger.info(
+                `🔥 [Stream] Account ${accountId} has ${errorCount} consecutive 5xx errors in the last 5 minutes`
+              )
+              if (errorCount >= 3) {
+                logger.error(
+                  `❌ [Stream] Account ${accountId} exceeded 5xx error threshold (${errorCount} errors), marking as temp_error`
+                )
+                await claudeAccountService.markAccountTempError(accountId, sessionHash)
+              }
             }
           }
 
@@ -2070,9 +1878,7 @@ class ClaudeRelayService {
             logger.error('❌ Error in stream error handler:', err)
           })
 
-          logger.error(
-            `❌ Claude API returned error status: ${res.statusCode} | Account: ${account?.name || accountId}`
-          )
+          logger.error(`❌ Claude API returned error status: ${res.statusCode}`)
           let errorData = ''
 
           res.on('data', (chunk) => {
