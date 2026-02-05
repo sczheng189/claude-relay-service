@@ -155,7 +155,7 @@ class ApiKeyService {
       allowedClients = [],
       dailyCostLimit = 0,
       totalCostLimit = 0,
-      weeklyOpusCostLimit = 0,
+      weeklyClaudeCostLimit = 0,
       tags = [],
       activationDays = 0, // 新增：激活后有效天数（0表示不使用此功能）
       activationUnit = 'days', // 新增：激活时间单位 'hours' 或 'days'
@@ -197,7 +197,7 @@ class ApiKeyService {
       allowedClients: JSON.stringify(allowedClients || []),
       dailyCostLimit: String(dailyCostLimit || 0),
       totalCostLimit: String(totalCostLimit || 0),
-      weeklyOpusCostLimit: String(weeklyOpusCostLimit || 0),
+      weeklyClaudeCostLimit: String(weeklyClaudeCostLimit || 0),
       tags: JSON.stringify(tags || []),
       activationDays: String(activationDays || 0), // 新增：激活后有效天数
       activationUnit: activationUnit || 'days', // 新增：激活时间单位
@@ -268,7 +268,7 @@ class ApiKeyService {
       allowedClients: JSON.parse(keyData.allowedClients || '[]'),
       dailyCostLimit: parseFloat(keyData.dailyCostLimit || 0),
       totalCostLimit: parseFloat(keyData.totalCostLimit || 0),
-      weeklyOpusCostLimit: parseFloat(keyData.weeklyOpusCostLimit || 0),
+      weeklyClaudeCostLimit: parseFloat(keyData.weeklyClaudeCostLimit || 0),
       tags: JSON.parse(keyData.tags || '[]'),
       activationDays: parseInt(keyData.activationDays || 0),
       activationUnit: keyData.activationUnit || 'days',
@@ -363,7 +363,7 @@ class ApiKeyService {
       // 按需获取费用统计（仅在有限制时查询，减少 Redis 调用）
       const dailyCostLimit = parseFloat(keyData.dailyCostLimit || 0)
       const totalCostLimit = parseFloat(keyData.totalCostLimit || 0)
-      const weeklyOpusCostLimit = parseFloat(keyData.weeklyOpusCostLimit || 0)
+      const weeklyClaudeCostLimit = parseFloat(keyData.weeklyClaudeCostLimit || 0)
 
       const costQueries = []
       if (dailyCostLimit > 0) {
@@ -372,9 +372,9 @@ class ApiKeyService {
       if (totalCostLimit > 0) {
         costQueries.push(redis.getCostStats(keyData.id).then((v) => ({ totalCost: v?.total || 0 })))
       }
-      if (weeklyOpusCostLimit > 0) {
+      if (weeklyClaudeCostLimit > 0) {
         costQueries.push(
-          redis.getWeeklyOpusCost(keyData.id).then((v) => ({ weeklyOpusCost: v || 0 }))
+          redis.getWeeklyClaudeCost(keyData.id).then((v) => ({ weeklyClaudeCost: v || 0 }))
         )
       }
 
@@ -445,10 +445,10 @@ class ApiKeyService {
           allowedClients,
           dailyCostLimit,
           totalCostLimit,
-          weeklyOpusCostLimit,
+          weeklyClaudeCostLimit,
           dailyCost: costData.dailyCost || 0,
           totalCost: costData.totalCost || 0,
-          weeklyOpusCost: costData.weeklyOpusCost || 0,
+          weeklyClaudeCost: costData.weeklyClaudeCost || 0,
           tags,
           serviceRates
         }
@@ -574,10 +574,10 @@ class ApiKeyService {
           allowedClients,
           dailyCostLimit: parseFloat(keyData.dailyCostLimit || 0),
           totalCostLimit: parseFloat(keyData.totalCostLimit || 0),
-          weeklyOpusCostLimit: parseFloat(keyData.weeklyOpusCostLimit || 0),
+          weeklyClaudeCostLimit: parseFloat(keyData.weeklyClaudeCostLimit || 0),
           dailyCost: dailyCost || 0,
           totalCost: costStats?.total || 0,
-          weeklyOpusCost: (await redis.getWeeklyOpusCost(keyData.id)) || 0,
+          weeklyClaudeCost: (await redis.getWeeklyClaudeCost(keyData.id)) || 0,
           tags,
           usage
         }
@@ -781,9 +781,9 @@ class ApiKeyService {
         key.permissions = normalizePermissions(key.permissions)
         key.dailyCostLimit = parseFloat(key.dailyCostLimit || 0)
         key.totalCostLimit = parseFloat(key.totalCostLimit || 0)
-        key.weeklyOpusCostLimit = parseFloat(key.weeklyOpusCostLimit || 0)
+        key.weeklyClaudeCostLimit = parseFloat(key.weeklyClaudeCostLimit || 0)
         key.dailyCost = (await redis.getDailyCost(key.id)) || 0
-        key.weeklyOpusCost = (await redis.getWeeklyOpusCost(key.id)) || 0
+        key.weeklyClaudeCost = (await redis.getWeeklyClaudeCost(key.id)) || 0
         key.activationDays = parseInt(key.activationDays || 0)
         key.activationUnit = key.activationUnit || 'days'
         key.expirationMode = key.expirationMode || 'fixed'
@@ -1006,7 +1006,7 @@ class ApiKeyService {
         // 费用统计
         key.totalCost = stats.costStats?.total || 0
         key.dailyCost = stats.dailyCost || 0
-        key.weeklyOpusCost = stats.weeklyOpusCost || 0
+        key.weeklyClaudeCost = stats.weeklyClaudeCost || 0
 
         // 并发
         key.currentConcurrency = stats.concurrency || 0
@@ -1019,7 +1019,7 @@ class ApiKeyService {
         key.rateLimitCost = parseFloat(key.rateLimitCost) || 0
         key.dailyCostLimit = parseFloat(key.dailyCostLimit) || 0
         key.totalCostLimit = parseFloat(key.totalCostLimit) || 0
-        key.weeklyOpusCostLimit = parseFloat(key.weeklyOpusCostLimit) || 0
+        key.weeklyClaudeCostLimit = parseFloat(key.weeklyClaudeCostLimit) || 0
         key.activationDays = parseInt(key.activationDays) || 0
         key.isActive = key.isActive === 'true' || key.isActive === true
         key.enableModelRestriction =
@@ -1210,7 +1210,7 @@ class ApiKeyService {
         'allowedClients',
         'dailyCostLimit',
         'totalCostLimit',
-        'weeklyOpusCostLimit',
+        'weeklyClaudeCostLimit',
         'tags',
         'userId', // 新增：用户ID（所有者变更）
         'userUsername', // 新增：用户名（所有者变更）
@@ -1568,8 +1568,8 @@ class ApiKeyService {
           `💰 Recorded cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
         )
 
-        // 记录 Opus 周费用（如果适用）
-        await this.recordOpusCost(keyId, ratedCost, realCost, model, accountType)
+        // 记录 Claude 周费用（如果适用）
+        await this.recordClaudeCost(keyId, ratedCost, realCost, model, accountType)
       } else {
         logger.debug(`💰 No cost recorded for ${keyId} - zero cost for model: ${model}`)
       }
@@ -1643,10 +1643,10 @@ class ApiKeyService {
     }
   }
 
-  // 📊 记录 Opus 模型费用（仅限 claude 和 claude-console 账户）
+  // 📊 记录 Claude 模型费用（仅限 claude 和 claude-console 账户）
   // ratedCost: 倍率后的成本（用于限额校验）
   // realCost: 真实成本（用于对账），如果不传则等于 ratedCost
-  async recordOpusCost(keyId, ratedCost, realCost, model, accountType) {
+  async recordClaudeCost(keyId, ratedCost, realCost, model, accountType) {
     try {
       // 判断是否为 Claude 系列模型（包含 Bedrock 格式等）
       if (!isClaudeFamilyModel(model)) {
@@ -1654,19 +1654,21 @@ class ApiKeyService {
       }
 
       // 判断是否为 claude-official、claude-console 或 ccr 账户
-      const opusAccountTypes = ['claude-official', 'claude-console', 'ccr']
-      if (!accountType || !opusAccountTypes.includes(accountType)) {
-        logger.debug(`⚠️ Skipping Opus cost recording for non-Claude account type: ${accountType}`)
+      const claudeAccountTypes = ['claude-official', 'claude-console', 'ccr']
+      if (!accountType || !claudeAccountTypes.includes(accountType)) {
+        logger.debug(
+          `⚠️ Skipping Claude cost recording for non-Claude account type: ${accountType}`
+        )
         return // 不是 claude 账户，直接返回
       }
 
-      // 记录 Opus 周费用（倍率成本和真实成本）
-      await redis.incrementWeeklyOpusCost(keyId, ratedCost, realCost)
+      // 记录 Claude 周费用（倍率成本和真实成本）
+      await redis.incrementWeeklyClaudeCost(keyId, ratedCost, realCost)
       logger.database(
-        `💰 Recorded Opus weekly cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
+        `💰 Recorded Claude weekly cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
       )
     } catch (error) {
-      logger.error('❌ Failed to record Opus weekly cost:', error)
+      logger.error('❌ Failed to record Claude weekly cost:', error)
     }
   }
 
@@ -1780,8 +1782,8 @@ class ApiKeyService {
           `💰 Recorded cost for ${keyId}: rated=$${ratedCostWithDetails.toFixed(6)}, real=$${realCostWithDetails.toFixed(6)}, model: ${model}`
         )
 
-        // 记录 Opus 周费用（如果适用，也应用倍率）
-        await this.recordOpusCost(
+        // 记录 Claude 周费用（如果适用，也应用倍率）
+        await this.recordClaudeCost(
           keyId,
           ratedCostWithDetails,
           realCostWithDetails,

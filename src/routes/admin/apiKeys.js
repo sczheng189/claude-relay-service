@@ -1029,7 +1029,7 @@ router.post('/api-keys/batch-stats', authenticateAdmin, async (req, res) => {
             cost: 0,
             formattedCost: '$0.00',
             dailyCost: 0,
-            weeklyOpusCost: 0,
+            weeklyClaudeCost: 0,
             currentWindowCost: 0,
             currentWindowRequests: 0,
             currentWindowTokens: 0,
@@ -1114,7 +1114,7 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
 
   // 获取实时限制数据（窗口数据不受时间范围筛选影响，始终获取当前窗口状态）
   let dailyCost = 0
-  let weeklyOpusCost = 0 // 字段名沿用 weeklyOpusCost*，语义为"Claude 周费用"
+  let weeklyClaudeCost = 0 // Claude 周费用
   let currentWindowCost = 0
   let currentWindowRequests = 0 // 当前窗口请求次数
   let currentWindowTokens = 0 // 当前窗口 Token 使用量
@@ -1129,7 +1129,7 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
     const rateLimitWindow = parseInt(apiKey?.rateLimitWindow) || 0
     const dailyCostLimit = parseFloat(apiKey?.dailyCostLimit) || 0
     const totalCostLimit = parseFloat(apiKey?.totalCostLimit) || 0
-    const weeklyOpusCostLimit = parseFloat(apiKey?.weeklyOpusCostLimit) || 0
+    const weeklyClaudeCostLimit = parseFloat(apiKey?.weeklyClaudeCostLimit) || 0
 
     // 只在启用了每日费用限制时查询
     if (dailyCostLimit > 0) {
@@ -1142,9 +1142,9 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
       allTimeCost = parseFloat((await client.get(totalCostKey)) || '0')
     }
 
-    // 只在启用了 Claude 周费用限制时查询（字段名沿用 weeklyOpusCostLimit）
-    if (weeklyOpusCostLimit > 0) {
-      weeklyOpusCost = await redis.getWeeklyOpusCost(keyId)
+    // 只在启用了 Claude 周费用限制时查询（字段名沿用 weeklyClaudeCostLimit）
+    if (weeklyClaudeCostLimit > 0) {
+      weeklyClaudeCost = await redis.getWeeklyClaudeCost(keyId)
     }
 
     // 只在启用了窗口限制时查询窗口数据（移到早期返回之前，确保窗口数据始终被获取）
@@ -1195,7 +1195,7 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
         formattedCost: CostCalculator.formatCost(allTimeCost),
         // 实时限制数据（始终返回，不受时间范围影响）
         dailyCost,
-        weeklyOpusCost,
+        weeklyClaudeCost,
         currentWindowCost,
         currentWindowRequests,
         currentWindowTokens,
@@ -1222,7 +1222,7 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
       formattedCost: '$0.00',
       // 实时限制数据（始终返回，不受时间范围影响）
       dailyCost,
-      weeklyOpusCost,
+      weeklyClaudeCost,
       currentWindowCost,
       currentWindowRequests,
       currentWindowTokens,
@@ -1343,7 +1343,7 @@ async function calculateKeyStats(keyId, timeRange, startDate, endDate) {
     formattedCost: CostCalculator.formatCost(totalCost),
     // 实时限制数据
     dailyCost,
-    weeklyOpusCost,
+    weeklyClaudeCost,
     currentWindowCost,
     currentWindowRequests,
     currentWindowTokens,
@@ -1473,7 +1473,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       allowedClients,
       dailyCostLimit,
       totalCostLimit,
-      weeklyOpusCostLimit,
+      weeklyClaudeCostLimit,
       tags,
       activationDays, // 新增：激活后有效天数
       activationUnit, // 新增：激活时间单位 (hours/days)
@@ -1634,7 +1634,7 @@ router.post('/api-keys', authenticateAdmin, async (req, res) => {
       allowedClients,
       dailyCostLimit,
       totalCostLimit,
-      weeklyOpusCostLimit,
+      weeklyClaudeCostLimit,
       tags,
       activationDays,
       activationUnit,
@@ -1677,7 +1677,7 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
       allowedClients,
       dailyCostLimit,
       totalCostLimit,
-      weeklyOpusCostLimit,
+      weeklyClaudeCostLimit,
       tags,
       activationDays,
       activationUnit,
@@ -1742,7 +1742,7 @@ router.post('/api-keys/batch', authenticateAdmin, async (req, res) => {
           allowedClients,
           dailyCostLimit,
           totalCostLimit,
-          weeklyOpusCostLimit,
+          weeklyClaudeCostLimit,
           tags,
           activationDays,
           activationUnit,
@@ -1880,8 +1880,8 @@ router.put('/api-keys/batch', authenticateAdmin, async (req, res) => {
         if (updates.totalCostLimit !== undefined) {
           finalUpdates.totalCostLimit = updates.totalCostLimit
         }
-        if (updates.weeklyOpusCostLimit !== undefined) {
-          finalUpdates.weeklyOpusCostLimit = updates.weeklyOpusCostLimit
+        if (updates.weeklyClaudeCostLimit !== undefined) {
+          finalUpdates.weeklyClaudeCostLimit = updates.weeklyClaudeCostLimit
         }
         if (updates.permissions !== undefined) {
           finalUpdates.permissions = updates.permissions
@@ -2016,7 +2016,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
       expiresAt,
       dailyCostLimit,
       totalCostLimit,
-      weeklyOpusCostLimit,
+      weeklyClaudeCostLimit,
       tags,
       ownerId, // 新增：所有者ID字段
       serviceRates // API Key 级别服务倍率
@@ -2178,20 +2178,20 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
       updates.totalCostLimit = costLimit
     }
 
-    // 处理 Opus 周费用限制
+    // 处理 Claude 周费用限制
     if (
-      weeklyOpusCostLimit !== undefined &&
-      weeklyOpusCostLimit !== null &&
-      weeklyOpusCostLimit !== ''
+      weeklyClaudeCostLimit !== undefined &&
+      weeklyClaudeCostLimit !== null &&
+      weeklyClaudeCostLimit !== ''
     ) {
-      const costLimit = Number(weeklyOpusCostLimit)
+      const costLimit = Number(weeklyClaudeCostLimit)
       // 明确验证非负数（0 表示禁用，负数无意义）
       if (isNaN(costLimit) || costLimit < 0) {
         return res
           .status(400)
-          .json({ error: 'Weekly Opus cost limit must be a non-negative number' })
+          .json({ error: 'Weekly Claude cost limit must be a non-negative number' })
       }
-      updates.weeklyOpusCostLimit = costLimit
+      updates.weeklyClaudeCostLimit = costLimit
     }
 
     // 处理标签

@@ -238,7 +238,7 @@
               Claude 模型周费用限制 (美元)
             </label>
             <input
-              v-model="form.weeklyOpusCostLimit"
+              v-model="form.weeklyClaudeCostLimit"
               class="form-input w-full border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
               min="0"
               placeholder="不修改 (0 表示无限制)"
@@ -510,7 +510,7 @@ const form = reactive({
   concurrencyLimit: '',
   dailyCostLimit: '',
   totalCostLimit: '',
-  weeklyOpusCostLimit: '', // 新增Claude周费用限制
+  weeklyClaudeCostLimit: '', // 新增Claude周费用限制
   permissions: '', // 空字符串表示不修改
   claudeAccountId: '',
   geminiAccountId: '',
@@ -734,8 +734,8 @@ const batchUpdateApiKeys = async () => {
     if (form.totalCostLimit !== '' && form.totalCostLimit !== null) {
       updates.totalCostLimit = parseFloat(form.totalCostLimit)
     }
-    if (form.weeklyOpusCostLimit !== '' && form.weeklyOpusCostLimit !== null) {
-      updates.weeklyOpusCostLimit = parseFloat(form.weeklyOpusCostLimit)
+    if (form.weeklyClaudeCostLimit !== '' && form.weeklyClaudeCostLimit !== null) {
+      updates.weeklyClaudeCostLimit = parseFloat(form.weeklyClaudeCostLimit)
     }
 
     // 权限设置

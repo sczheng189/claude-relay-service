@@ -168,22 +168,22 @@
         </div>
 
         <!-- Claude 模型周费用限制 -->
-        <div v-if="statsData.limits.weeklyOpusCostLimit > 0">
+        <div v-if="statsData.limits.weeklyClaudeCostLimit > 0">
           <div class="mb-2 flex items-center justify-between">
             <span class="text-sm font-medium text-gray-600 dark:text-gray-400 md:text-base"
               >Claude 模型周费用限制</span
             >
             <span class="text-xs text-gray-500 dark:text-gray-400 md:text-sm">
-              ${{ statsData.limits.weeklyOpusCost.toFixed(4) }} / ${{
-                statsData.limits.weeklyOpusCostLimit.toFixed(2)
+              ${{ statsData.limits.weeklyClaudeCost.toFixed(4) }} / ${{
+                statsData.limits.weeklyClaudeCostLimit.toFixed(2)
               }}
             </span>
           </div>
           <div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
             <div
               class="h-2 rounded-full transition-all duration-300"
-              :class="getOpusWeeklyCostProgressColor()"
-              :style="{ width: getOpusWeeklyCostProgress() + '%' }"
+              :class="getClaudeWeeklyCostProgressColor()"
+              :style="{ width: getClaudeWeeklyCostProgress() + '%' }"
             />
           </div>
         </div>
@@ -385,23 +385,23 @@ const getTotalCostProgressColor = () => {
 }
 
 // 获取Claude周费用进度
-const getOpusWeeklyCostProgress = () => {
+const getClaudeWeeklyCostProgress = () => {
   if (
-    !statsData.value.limits.weeklyOpusCostLimit ||
-    statsData.value.limits.weeklyOpusCostLimit === 0
+    !statsData.value.limits.weeklyClaudeCostLimit ||
+    statsData.value.limits.weeklyClaudeCostLimit === 0
   )
     return 0
   const percentage =
-    (statsData.value.limits.weeklyOpusCost / statsData.value.limits.weeklyOpusCostLimit) * 100
+    (statsData.value.limits.weeklyClaudeCost / statsData.value.limits.weeklyClaudeCostLimit) * 100
   return Math.min(percentage, 100)
 }
 
 // 获取Claude周费用进度条颜色
-const getOpusWeeklyCostProgressColor = () => {
-  const progress = getOpusWeeklyCostProgress()
+const getClaudeWeeklyCostProgressColor = () => {
+  const progress = getClaudeWeeklyCostProgress()
   if (progress >= 100) return 'bg-red-500'
   if (progress >= 80) return 'bg-yellow-500'
-  return 'bg-indigo-500' // 使用紫色表示Opus模型
+  return 'bg-indigo-500' // 使用紫色表示Claude模型
 }
 
 // 格式化数字

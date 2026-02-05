@@ -27,7 +27,7 @@ const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['daily', 'opus', 'window'].includes(value)
+    validator: (value) => ['daily', 'claude', 'window'].includes(value)
   },
   label: {
     type: String,
@@ -53,7 +53,7 @@ const badgeClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'bg-gray-50 dark:bg-gray-700/50'
-    case 'opus':
+    case 'claude':
       return 'bg-indigo-50 dark:bg-indigo-900/20'
     case 'window':
       return 'bg-blue-50 dark:bg-blue-900/20'
@@ -66,7 +66,7 @@ const iconClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'fas fa-calendar-day text-gray-500'
-    case 'opus':
+    case 'claude':
       return 'fas fa-gem text-indigo-500'
     case 'window':
       return 'fas fa-clock text-blue-500'
@@ -83,7 +83,7 @@ const progressClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'bg-green-500'
-    case 'opus':
+    case 'claude':
       return 'bg-indigo-500'
     case 'window':
       return 'bg-blue-500'

@@ -168,16 +168,16 @@
                 </div>
               </div>
 
-              <div v-if="Number(apiKey.weeklyOpusCostLimit) > 0" class="space-y-1.5">
+              <div v-if="Number(apiKey.weeklyClaudeCostLimit) > 0" class="space-y-1.5">
                 <LimitProgressBar
-                  :current="Number(weeklyOpusCost) || 0"
+                  :current="Number(weeklyClaudeCost) || 0"
                   label="Claude 周费用限制"
-                  :limit="Number(apiKey.weeklyOpusCostLimit) || 0"
+                  :limit="Number(apiKey.weeklyClaudeCostLimit) || 0"
                   :show-shine="true"
-                  type="opus"
+                  type="claude"
                 />
                 <div class="text-right text-xs text-gray-500 dark:text-gray-400">
-                  已使用 {{ Math.min(opusUsagePercentage, 100).toFixed(1) }}%
+                  已使用 {{ Math.min(claudeUsagePercentage, 100).toFixed(1) }}%
                 </div>
               </div>
 
@@ -348,8 +348,8 @@ const dailyTokens = computed(() => props.apiKey.usage?.daily?.tokens || 0)
 const totalCost = computed(() => props.apiKey.usage?.total?.cost || 0)
 const dailyCost = computed(() => props.apiKey.dailyCost || 0)
 const totalCostLimit = computed(() => props.apiKey.totalCostLimit || 0)
-const weeklyOpusCost = computed(() => props.apiKey.weeklyOpusCost || 0)
-const weeklyOpusCostLimit = computed(() => props.apiKey.weeklyOpusCostLimit || 0)
+const weeklyClaudeCost = computed(() => props.apiKey.weeklyClaudeCost || 0)
+const weeklyClaudeCostLimit = computed(() => props.apiKey.weeklyClaudeCostLimit || 0)
 const inputTokens = computed(() => props.apiKey.usage?.total?.inputTokens || 0)
 const outputTokens = computed(() => props.apiKey.usage?.total?.outputTokens || 0)
 const cacheCreateTokens = computed(() => props.apiKey.usage?.total?.cacheCreateTokens || 0)
@@ -393,7 +393,7 @@ const hasLimits = computed(() => {
     Number(props.apiKey.dailyCostLimit) > 0 ||
     Number(props.apiKey.totalCostLimit) > 0 ||
     Number(props.apiKey.concurrencyLimit) > 0 ||
-    Number(props.apiKey.weeklyOpusCostLimit) > 0 ||
+    Number(props.apiKey.weeklyClaudeCostLimit) > 0 ||
     Number(props.apiKey.rateLimitWindow) > 0 ||
     Number(props.apiKey.rateLimitRequests) > 0 ||
     Number(props.apiKey.rateLimitCost) > 0 ||
@@ -412,9 +412,9 @@ const totalUsagePercentage = computed(() => {
   return (totalCost.value / totalCostLimit.value) * 100
 })
 
-const opusUsagePercentage = computed(() => {
-  if (!weeklyOpusCostLimit.value || weeklyOpusCostLimit.value === 0) return 0
-  return (weeklyOpusCost.value / weeklyOpusCostLimit.value) * 100
+const claudeUsagePercentage = computed(() => {
+  if (!weeklyClaudeCostLimit.value || weeklyClaudeCostLimit.value === 0) return 0
+  return (weeklyClaudeCost.value / weeklyClaudeCostLimit.value) * 100
 })
 
 // 方法

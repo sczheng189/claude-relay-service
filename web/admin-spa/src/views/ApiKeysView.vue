@@ -4232,16 +4232,16 @@ const formatWindowTime = (seconds) => {
 //   return 'bg-green-500'
 // }
 
-// 获取 Opus 周费用进度 - 已移到 LimitBadge 组件中
-// const getWeeklyOpusCostProgress = (key) => {
-//   if (!key.weeklyOpusCostLimit || key.weeklyOpusCostLimit === 0) return 0
-//   const percentage = ((key.weeklyOpusCost || 0) / key.weeklyOpusCostLimit) * 100
+// 获取 Claude 周费用进度 - 已移到 LimitBadge 组件中
+// const getWeeklyClaudeCostProgress = (key) => {
+//   if (!key.weeklyClaudeCostLimit || key.weeklyClaudeCostLimit === 0) return 0
+//   const percentage = ((key.weeklyClaudeCost || 0) / key.weeklyClaudeCostLimit) * 100
 //   return Math.min(percentage, 100)
 // }
 
-// 获取 Opus 周费用进度条颜色 - 已移到 LimitBadge 组件中
-// const getWeeklyOpusCostProgressColor = (key) => {
-//   const progress = getWeeklyOpusCostProgress(key)
+// 获取 Claude 周费用进度条颜色 - 已移到 LimitBadge 组件中
+// const getWeeklyClaudeCostProgressColor = (key) => {
+//   const progress = getWeeklyClaudeCostProgress(key)
 //   if (progress >= 100) return 'bg-red-500'
 //   if (progress >= 80) return 'bg-yellow-500'
 //   return 'bg-green-500'
@@ -4261,7 +4261,7 @@ const showUsageDetails = (apiKey) => {
   const enrichedApiKey = {
     ...apiKey,
     dailyCost: cachedStats?.dailyCost ?? apiKey.dailyCost ?? 0,
-    weeklyOpusCost: cachedStats?.weeklyOpusCost ?? apiKey.weeklyOpusCost ?? 0,
+    weeklyClaudeCost: cachedStats?.weeklyClaudeCost ?? apiKey.weeklyClaudeCost ?? 0,
     currentWindowCost: cachedStats?.currentWindowCost ?? apiKey.currentWindowCost ?? 0,
     currentWindowRequests: cachedStats?.currentWindowRequests ?? apiKey.currentWindowRequests ?? 0,
     currentWindowTokens: cachedStats?.currentWindowTokens ?? apiKey.currentWindowTokens ?? 0,

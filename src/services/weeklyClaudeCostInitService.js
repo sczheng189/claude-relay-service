@@ -1,7 +1,5 @@
 const redis = require('../models/redis')
 const logger = require('../utils/logger')
-const pricingService = require('./pricingService')
-const serviceRatesService = require('./serviceRatesService')
 const { isClaudeFamilyModel } = require('../utils/modelHelper')
 
 function pad2(n) {
@@ -32,13 +30,130 @@ class WeeklyClaudeCostInitService {
     return dates
   }
 
-  _buildWeeklyOpusKey(keyId, weekString) {
-    return `usage:opus:weekly:${keyId}:${weekString}`
+  _buildWeeklyClaudeKey(keyId, weekString) {
+    return `usage:claude:weekly:${keyId}:${weekString}`
+  }
+
+  /**
+   * 自动迁移旧 Redis 字段：weeklyOpusCostLimit → weeklyClaudeCostLimit
+   * 以及 usage:opus:* → usage:claude:* 键名。
+   * 幂等安全：新字段已存在时跳过，迁移完成后写 done 标记避免重复执行。
+   */
+  async _migrateOpusToClaudeFields() {
+    const client = redis.getClientSafe()
+    if (!client) return
+
+    const doneKey = 'migrate:opus_to_claude:done'
+    try {
+      const alreadyDone = await client.get(doneKey)
+      if (alreadyDone) return
+    } catch {
+      // 读取失败不阻断
+    }
+
+    logger.info('🔄 检测到首次使用新版本，自动迁移 opus → claude 字段...')
+    let migrated = 0
+
+    // UUID 格式正则：apikey:{uuid} 形式的键才是实际的 API Key 数据
+    const uuidPattern = /^apikey:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+    try {
+      // 1. 迁移 API Key Hash 字段
+      let cursor = '0'
+      do {
+        const [nextCursor, keys] = await client.scan(cursor, 'MATCH', 'apikey:*', 'COUNT', 500)
+        cursor = nextCursor
+        for (const key of keys) {
+          // 跳过索引键（如 apikey:idx:*, apikey:set:*, apikey:hash_map 等），只处理实际的 API Key 数据
+          if (!uuidPattern.test(key)) {
+            continue
+          }
+          const oldValue = await client.hget(key, 'weeklyOpusCostLimit')
+          if (oldValue !== null) {
+            const newValue = await client.hget(key, 'weeklyClaudeCostLimit')
+            if (newValue === null) {
+              await client.hset(key, 'weeklyClaudeCostLimit', oldValue)
+            }
+            await client.hdel(key, 'weeklyOpusCostLimit')
+            migrated++
+          }
+        }
+      } while (cursor !== '0')
+
+      // 2. 迁移 usage:opus:* 键（weekly/total 及其 real 变体）
+      const keyPatterns = [
+        {
+          pattern: 'usage:opus:weekly:*',
+          old: 'usage:opus:weekly:',
+          new: 'usage:claude:weekly:',
+          preserveTtl: true
+        },
+        {
+          pattern: 'usage:opus:real:weekly:*',
+          old: 'usage:opus:real:weekly:',
+          new: 'usage:claude:real:weekly:',
+          preserveTtl: true
+        },
+        {
+          pattern: 'usage:opus:total:*',
+          old: 'usage:opus:total:',
+          new: 'usage:claude:total:',
+          preserveTtl: false
+        },
+        {
+          pattern: 'usage:opus:real:total:*',
+          old: 'usage:opus:real:total:',
+          new: 'usage:claude:real:total:',
+          preserveTtl: false
+        }
+      ]
+
+      for (const kp of keyPatterns) {
+        cursor = '0'
+        do {
+          const [nextCursor, keys] = await client.scan(cursor, 'MATCH', kp.pattern, 'COUNT', 500)
+          cursor = nextCursor
+          for (const key of keys) {
+            const newKey = key.replace(kp.old, kp.new)
+            const exists = await client.exists(newKey)
+            if (!exists) {
+              const value = await client.get(key)
+              if (kp.preserveTtl) {
+                const ttl = await client.ttl(key)
+                if (ttl > 0) {
+                  await client.set(newKey, value, 'EX', ttl)
+                } else {
+                  await client.set(newKey, value)
+                }
+              } else {
+                await client.set(newKey, value)
+              }
+            }
+            await client.del(key)
+            migrated++
+          }
+        } while (cursor !== '0')
+      }
+
+      // 写 done 标记（永不过期）
+      await client.set(doneKey, new Date().toISOString())
+
+      if (migrated > 0) {
+        logger.info(`✅ opus → claude 字段迁移完成：${migrated} 个字段/键已处理`)
+      } else {
+        logger.info('✅ opus → claude 字段迁移完成：无需迁移的数据')
+      }
+    } catch (error) {
+      logger.warn(
+        '⚠️ opus → claude 字段迁移出错（不影响启动）:',
+        error.message || error.code || error
+      )
+    }
   }
 
   /**
    * 启动回填：把"本周（周一到今天）Claude 全模型"周费用从按日/按模型统计里反算出来，
-   * 写入 `usage:opus:weekly:*`，保证周限额在重启后不归零。
+   * 写入 `usage:claude:weekly:*`，保证周限额在重启后不归零。
    *
    * 说明：
    * - 只回填本周，不做历史回填（符合"只要本周数据"诉求）
@@ -52,13 +167,11 @@ class WeeklyClaudeCostInitService {
       return { success: false, reason: 'redis_unavailable' }
     }
 
-    if (!pricingService || !pricingService.pricingData) {
-      logger.warn('⚠️ 本周 Claude 周费用回填跳过：pricing service 未初始化')
-      return { success: false, reason: 'pricing_uninitialized' }
-    }
+    // 先执行旧字段迁移（幂等，只在首次升级时实际执行）
+    await this._migrateOpusToClaudeFields()
 
     const weekString = redis.getWeekStringInTimezone()
-    const doneKey = `init:weekly_opus_cost:${weekString}:done`
+    const doneKey = `init:weekly_claude_cost:${weekString}:done`
 
     try {
       const alreadyDone = await client.get(doneKey)
@@ -70,7 +183,7 @@ class WeeklyClaudeCostInitService {
       // 尽力而为：读取失败不阻断启动回填流程。
     }
 
-    const lockKey = `lock:init:weekly_opus_cost:${weekString}`
+    const lockKey = `lock:init:weekly_claude_cost:${weekString}`
     const lockValue = `${process.pid}:${Date.now()}`
     const lockTtlMs = 15 * 60 * 1000
 
@@ -87,9 +200,8 @@ class WeeklyClaudeCostInitService {
       const keyIds = await redis.scanApiKeyIds()
       const dates = this._getCurrentWeekDatesInTimezone()
 
-      // 预加载所有 API Key 数据和全局倍率（避免循环内重复查询）
+      // 预加载所有 API Key 数据（避免循环内重复查询）
       const keyDataCache = new Map()
-      const globalRateCache = new Map()
       const batchSize = 500
       for (let i = 0; i < keyIds.length; i += batchSize) {
         const batch = keyIds.slice(i, i + batchSize)
@@ -107,8 +219,8 @@ class WeeklyClaudeCostInitService {
       }
       logger.info(`💰 预加载 ${keyDataCache.size} 个 API Key 数据`)
 
-      // 推断账户类型的辅助函数（与运行时 recordOpusCost 一致，只统计 claude-official/claude-console/ccr）
-      const OPUS_ACCOUNT_TYPES = ['claude-official', 'claude-console', 'ccr']
+      // 推断账户类型的辅助函数（与运行时 recordClaudeCost 一致，只统计 claude-official/claude-console/ccr）
+      const CLAUDE_ACCOUNT_TYPES = ['claude-official', 'claude-console', 'ccr']
       const inferAccountType = (keyData) => {
         if (keyData?.ccrAccountId) {
           return 'ccr'
@@ -175,78 +287,37 @@ class WeeklyClaudeCostInitService {
               continue
             }
 
-            const inputTokens = toInt(data.totalInputTokens || data.inputTokens)
-            const outputTokens = toInt(data.totalOutputTokens || data.outputTokens)
-            const cacheReadTokens = toInt(data.totalCacheReadTokens || data.cacheReadTokens)
-            const cacheCreateTokens = toInt(data.totalCacheCreateTokens || data.cacheCreateTokens)
-            const ephemeral5mTokens = toInt(data.ephemeral5mTokens)
-            const ephemeral1hTokens = toInt(data.ephemeral1hTokens)
-
-            const cacheCreationTotal =
-              ephemeral5mTokens > 0 || ephemeral1hTokens > 0
-                ? ephemeral5mTokens + ephemeral1hTokens
-                : cacheCreateTokens
-
-            const usage = {
-              input_tokens: inputTokens,
-              output_tokens: outputTokens,
-              cache_creation_input_tokens: cacheCreationTotal,
-              cache_read_input_tokens: cacheReadTokens
-            }
-
-            if (ephemeral5mTokens > 0 || ephemeral1hTokens > 0) {
-              usage.cache_creation = {
-                ephemeral_5m_input_tokens: ephemeral5mTokens,
-                ephemeral_1h_input_tokens: ephemeral1hTokens
-              }
-            }
-
-            const costInfo = pricingService.calculateCost(usage, entry.model)
-            const realCost = costInfo && costInfo.totalCost ? costInfo.totalCost : 0
-            if (realCost <= 0) {
+            // 直接使用已存储的 ratedCostMicro（已包含倍率），避免重新计算导致精度差异
+            const ratedCostMicro = toInt(data.ratedCostMicro)
+            if (ratedCostMicro <= 0) {
               continue
             }
 
-            // 应用倍率：全局倍率 × Key 倍率（使用缓存数据）
+            // 转换为美元（micro = 百万分之一）
+            const ratedCost = ratedCostMicro / 1000000
+
+            // 验证账户类型：只统计 claude-official/claude-console/ccr 账户
             const keyData = keyDataCache.get(entry.keyId)
             const accountType = inferAccountType(keyData)
 
-            // 与运行时 recordOpusCost 一致：只统计 claude-official/claude-console/ccr 账户
-            if (!accountType || !OPUS_ACCOUNT_TYPES.includes(accountType)) {
+            // 与运行时 recordClaudeCost 一致：只统计 claude-official/claude-console/ccr 账户
+            if (!accountType || !CLAUDE_ACCOUNT_TYPES.includes(accountType)) {
               continue
             }
 
-            const service = serviceRatesService.getService(accountType, entry.model)
-
-            // 获取全局倍率（带缓存）
-            let globalRate = globalRateCache.get(service)
-            if (globalRate === undefined) {
-              globalRate = await serviceRatesService.getServiceRate(service)
-              globalRateCache.set(service, globalRate)
-            }
-
-            // 获取 Key 倍率
-            let keyRates = {}
-            try {
-              keyRates = JSON.parse(keyData?.serviceRates || '{}')
-            } catch (e) {
-              keyRates = {}
-            }
-            const keyRate = keyRates[service] ?? 1.0
-            const ratedCost = realCost * globalRate * keyRate
-
+            // ratedCostMicro 已包含全局倍率和 Key 倍率，直接累加
             costByKeyId.set(entry.keyId, (costByKeyId.get(entry.keyId) || 0) + ratedCost)
           }
         } while (cursor !== '0')
       }
 
-      // 为所有 API Key 写入本周 opus:weekly key
+      // 为所有 API Key 写入本周 claude:weekly key
       const ttlSeconds = 14 * 24 * 3600
       for (let i = 0; i < keyIds.length; i += batchSize) {
         const batch = keyIds.slice(i, i + batchSize)
         const pipeline = client.pipeline()
         for (const keyId of batch) {
-          const weeklyKey = this._buildWeeklyOpusKey(keyId, weekString)
+          const weeklyKey = this._buildWeeklyClaudeKey(keyId, weekString)
           const cost = costByKeyId.get(keyId) || 0
           pipeline.set(weeklyKey, String(cost))
           pipeline.expire(weeklyKey, ttlSeconds)

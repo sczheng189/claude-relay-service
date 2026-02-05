@@ -1753,31 +1753,31 @@ class RedisClient {
     }
   }
 
-  // 💰 获取本周 Opus 费用
-  async getWeeklyOpusCost(keyId) {
+  // 💰 获取本周 Claude 费用
+  async getWeeklyClaudeCost(keyId) {
     const currentWeek = getWeekStringInTimezone()
-    const costKey = `usage:opus:weekly:${keyId}:${currentWeek}`
+    const costKey = `usage:claude:weekly:${keyId}:${currentWeek}`
     const cost = await this.client.get(costKey)
     const result = parseFloat(cost || 0)
     logger.debug(
-      `💰 Getting weekly Opus cost for ${keyId}, week: ${currentWeek}, key: ${costKey}, value: ${cost}, result: ${result}`
+      `💰 Getting weekly Claude cost for ${keyId}, week: ${currentWeek}, key: ${costKey}, value: ${cost}, result: ${result}`
     )
     return result
   }
 
-  // 💰 增加本周 Opus 费用（支持倍率成本和真实成本）
+  // 💰 增加本周 Claude 费用（支持倍率成本和真实成本）
   // amount: 倍率后的成本（用于限额校验）
   // realAmount: 真实成本（用于对账），如果不传则等于 amount
-  async incrementWeeklyOpusCost(keyId, amount, realAmount = null) {
+  async incrementWeeklyClaudeCost(keyId, amount, realAmount = null) {
     const currentWeek = getWeekStringInTimezone()
-    const weeklyKey = `usage:opus:weekly:${keyId}:${currentWeek}`
-    const totalKey = `usage:opus:total:${keyId}`
-    const realWeeklyKey = `usage:opus:real:weekly:${keyId}:${currentWeek}`
-    const realTotalKey = `usage:opus:real:total:${keyId}`
+    const weeklyKey = `usage:claude:weekly:${keyId}:${currentWeek}`
+    const totalKey = `usage:claude:total:${keyId}`
+    const realWeeklyKey = `usage:claude:real:weekly:${keyId}:${currentWeek}`
+    const realTotalKey = `usage:claude:real:total:${keyId}`
     const actualRealAmount = realAmount !== null ? realAmount : amount
 
     logger.debug(
-      `💰 Incrementing weekly Opus cost for ${keyId}, week: ${currentWeek}, rated: $${amount}, real: $${actualRealAmount}`
+      `💰 Incrementing weekly Claude cost for ${keyId}, week: ${currentWeek}, rated: $${amount}, real: $${actualRealAmount}`
     )
 
     // 使用 pipeline 批量执行，提高性能
@@ -1791,13 +1791,13 @@ class RedisClient {
     pipeline.expire(realWeeklyKey, 14 * 24 * 3600)
 
     const results = await pipeline.exec()
-    logger.debug(`💰 Opus cost incremented successfully, new weekly total: $${results[0][1]}`)
+    logger.debug(`💰 Claude cost incremented successfully, new weekly total: $${results[0][1]}`)
   }
 
-  // 💰 覆盖设置本周 Opus 费用（用于启动回填/迁移）
-  async setWeeklyOpusCost(keyId, amount, weekString = null) {
+  // 💰 覆盖设置本周 Claude 费用（用于启动回填/迁移）
+  async setWeeklyClaudeCost(keyId, amount, weekString = null) {
     const currentWeek = weekString || getWeekStringInTimezone()
-    const weeklyKey = `usage:opus:weekly:${keyId}:${currentWeek}`
+    const weeklyKey = `usage:claude:weekly:${keyId}:${currentWeek}`
 
     await this.client.set(weeklyKey, String(amount || 0))
     // 保留 2 周，足够覆盖"当前周 + 上周"查看/回填
@@ -4638,8 +4638,8 @@ redisClient.batchGetApiKeyStats = async function (keyIds) {
     pipeline.get(`usage:cost:total:${keyId}`)
     // concurrency (1 zcard)
     pipeline.zcard(`concurrency:${keyId}`)
-    // weekly opus cost (1 get)
-    pipeline.get(`usage:opus:weekly:${keyId}:${currentWeek}`)
+    // weekly claude cost (1 get)
+    pipeline.get(`usage:claude:weekly:${keyId}:${currentWeek}`)
     // rate limit (4 get)
     pipeline.get(`rate_limit:requests:${keyId}`)
     pipeline.get(`rate_limit:tokens:${keyId}`)
@@ -4666,7 +4666,7 @@ redisClient.batchGetApiKeyStats = async function (keyIds) {
       [, costHourly],
       [, costTotal],
       [, concurrency],
-      [, weeklyOpusCost],
+      [, weeklyClaudeCost],
       [, rateLimitRequests],
       [, rateLimitTokens],
       [, rateLimitCost],
@@ -4686,7 +4686,7 @@ redisClient.batchGetApiKeyStats = async function (keyIds) {
       },
       concurrency: concurrency || 0,
       dailyCost: parseFloat(costDaily || 0),
-      weeklyOpusCost: parseFloat(weeklyOpusCost || 0),
+      weeklyClaudeCost: parseFloat(weeklyClaudeCost || 0),
       rateLimit: {
         requests: parseInt(rateLimitRequests || 0),
         tokens: parseInt(rateLimitTokens || 0),

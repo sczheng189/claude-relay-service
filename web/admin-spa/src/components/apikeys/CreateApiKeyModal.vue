@@ -393,34 +393,34 @@
                 <button
                   class="rounded bg-gray-100 px-2 py-1 text-xs font-medium hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   type="button"
-                  @click="form.weeklyOpusCostLimit = '100'"
+                  @click="form.weeklyClaudeCostLimit = '100'"
                 >
                   $100
                 </button>
                 <button
                   class="rounded bg-gray-100 px-2 py-1 text-xs font-medium hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   type="button"
-                  @click="form.weeklyOpusCostLimit = '500'"
+                  @click="form.weeklyClaudeCostLimit = '500'"
                 >
                   $500
                 </button>
                 <button
                   class="rounded bg-gray-100 px-2 py-1 text-xs font-medium hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   type="button"
-                  @click="form.weeklyOpusCostLimit = '1000'"
+                  @click="form.weeklyClaudeCostLimit = '1000'"
                 >
                   $1000
                 </button>
                 <button
                   class="rounded bg-gray-100 px-2 py-1 text-xs font-medium hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   type="button"
-                  @click="form.weeklyOpusCostLimit = ''"
+                  @click="form.weeklyClaudeCostLimit = ''"
                 >
                   自定义
                 </button>
               </div>
               <input
-                v-model="form.weeklyOpusCostLimit"
+                v-model="form.weeklyClaudeCostLimit"
                 class="form-input w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:placeholder-gray-400"
                 min="0"
                 placeholder="0 表示无限制"
@@ -1060,7 +1060,7 @@ const form = reactive({
   concurrencyLimit: '',
   dailyCostLimit: '',
   totalCostLimit: '',
-  weeklyOpusCostLimit: '',
+  weeklyClaudeCostLimit: '',
   expireDuration: '',
   customExpireDate: '',
   expiresAt: null,
@@ -1491,9 +1491,9 @@ const createApiKey = async () => {
         form.totalCostLimit !== '' && form.totalCostLimit !== null
           ? parseFloat(form.totalCostLimit)
           : 0,
-      weeklyOpusCostLimit:
-        form.weeklyOpusCostLimit !== '' && form.weeklyOpusCostLimit !== null
-          ? parseFloat(form.weeklyOpusCostLimit)
+      weeklyClaudeCostLimit:
+        form.weeklyClaudeCostLimit !== '' && form.weeklyClaudeCostLimit !== null
+          ? parseFloat(form.weeklyClaudeCostLimit)
           : 0,
       expiresAt: form.expirationMode === 'fixed' ? form.expiresAt || undefined : undefined,
       expirationMode: form.expirationMode,

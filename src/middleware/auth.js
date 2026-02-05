@@ -1249,21 +1249,21 @@ const authenticateApiKey = async (req, res, next) => {
     }
 
     // 检查 Claude 周费用限制
-    const weeklyOpusCostLimit = validation.keyData.weeklyOpusCostLimit || 0
-    if (weeklyOpusCostLimit > 0) {
+    const weeklyClaudeCostLimit = validation.keyData.weeklyClaudeCostLimit || 0
+    if (weeklyClaudeCostLimit > 0) {
       // 从请求中获取模型信息
       const requestBody = req.body || {}
       const model = requestBody.model || ''
 
       // 判断是否为 Claude 模型
       if (isClaudeFamilyModel(model)) {
-        const weeklyOpusCost = validation.keyData.weeklyOpusCost || 0
+        const weeklyClaudeCost = validation.keyData.weeklyClaudeCost || 0
 
-        if (weeklyOpusCost >= weeklyOpusCostLimit) {
+        if (weeklyClaudeCost >= weeklyClaudeCostLimit) {
           logger.security(
             `💰 Weekly Claude cost limit exceeded for key: ${validation.keyData.id} (${
               validation.keyData.name
-            }), cost: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
+            }), cost: $${weeklyClaudeCost.toFixed(2)}/$${weeklyClaudeCostLimit}`
           )
 
           // 计算下周一的重置时间
@@ -1278,11 +1278,11 @@ const authenticateApiKey = async (req, res, next) => {
           return res.status(402).json({
             error: {
               type: 'insufficient_quota',
-              message: `已达到 Opus 模型周费用限制 ($${weeklyOpusCostLimit})`,
-              code: 'weekly_opus_cost_limit_exceeded'
+              message: `已达到 Claude 模型周费用限制 ($${weeklyClaudeCostLimit})`,
+              code: 'weekly_claude_cost_limit_exceeded'
             },
-            currentCost: weeklyOpusCost,
-            costLimit: weeklyOpusCostLimit,
+            currentCost: weeklyClaudeCost,
+            costLimit: weeklyClaudeCostLimit,
             resetAt: resetDate.toISOString()
           })
         }
@@ -1291,7 +1291,7 @@ const authenticateApiKey = async (req, res, next) => {
         logger.api(
           `💰 Claude weekly cost usage for key: ${validation.keyData.id} (${
             validation.keyData.name
-          }), current: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
+          }), current: $${weeklyClaudeCost.toFixed(2)}/$${weeklyClaudeCostLimit}`
         )
       }
     }

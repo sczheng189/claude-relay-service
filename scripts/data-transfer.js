@@ -117,7 +117,7 @@ const CSV_FIELD_MAPPING = {
   concurrencyLimit: '并发限制',
   dailyCostLimit: '日费用限制(美元)',
   totalCostLimit: '总费用限制(美元)',
-  weeklyOpusCostLimit: '周Claude费用限制(美元)',
+  weeklyClaudeCostLimit: '周Claude费用限制(美元)',
 
   // 账户绑定
   claudeAccountId: 'Claude专属账户',
@@ -221,7 +221,7 @@ function formatCSVValue(key, value, shouldSanitize = false) {
     case 'rateLimitCost':
     case 'dailyCostLimit':
     case 'totalCostLimit':
-    case 'weeklyOpusCostLimit':
+    case 'weeklyClaudeCostLimit':
       return value === '0' || value === 0 ? '无限制' : `$${value}`
 
     default:
@@ -546,7 +546,9 @@ async function importData() {
           // 使用 hset 存储到哈希表
           const pipeline = redis.client.pipeline()
           for (const [field, value] of Object.entries(apiKey)) {
-            pipeline.hset(`apikey:${apiKey.id}`, field, value)
+            // 兼容旧版导出的字段名
+            const normalizedField = field === 'weeklyOpusCostLimit' ? 'weeklyClaudeCostLimit' : field
+            pipeline.hset(`apikey:${apiKey.id}`, normalizedField, value)
           }
           await pipeline.exec()
 

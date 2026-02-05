@@ -83,7 +83,7 @@ const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['daily', 'opus', 'window', 'total'].includes(value)
+    validator: (value) => ['daily', 'claude', 'window', 'total'].includes(value)
   },
   variant: {
     type: String,
@@ -132,7 +132,7 @@ const containerClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'border-emerald-200/80 bg-white/80 shadow-[0_10px_24px_rgba(16,185,129,0.18)] group-hover:shadow-[0_14px_30px_rgba(16,185,129,0.22)] dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:shadow-[0_12px_28px_rgba(0,0,0,0.45)]'
-    case 'opus':
+    case 'claude':
       return 'border-violet-200/80 bg-white/80 shadow-[0_10px_24px_rgba(139,92,246,0.18)] group-hover:shadow-[0_14px_30px_rgba(139,92,246,0.22)] dark:border-violet-500/40 dark:bg-violet-950/40 dark:shadow-[0_12px_28px_rgba(0,0,0,0.45)]'
     case 'window':
       return 'border-sky-200/80 bg-white/80 shadow-[0_10px_24px_rgba(56,189,248,0.18)] group-hover:shadow-[0_14px_30px_rgba(56,189,248,0.22)] dark:border-sky-500/40 dark:bg-sky-950/40 dark:shadow-[0_12px_28px_rgba(0,0,0,0.45)]'
@@ -148,7 +148,7 @@ const backgroundClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-100 dark:from-emerald-900/40 dark:via-emerald-900/20 dark:to-emerald-800/30'
-    case 'opus':
+    case 'claude':
       return 'bg-gradient-to-r from-violet-50 via-violet-100 to-fuchsia-100 dark:from-violet-900/40 dark:via-violet-900/20 dark:to-fuchsia-900/30'
     case 'window':
       return 'bg-gradient-to-r from-sky-50 via-sky-100 to-cyan-100 dark:from-sky-900/40 dark:via-sky-900/20 dark:to-cyan-900/30'
@@ -173,7 +173,7 @@ const progressBarClass = computed(() => {
     }
   }
 
-  if (props.type === 'opus') {
+  if (props.type === 'claude') {
     if (p >= 90) {
       return 'bg-gradient-to-r from-rose-500 via-red-500 to-rose-600 dark:from-rose-500 dark:via-red-500 dark:to-rose-600'
     } else if (p >= 70) {
@@ -219,7 +219,7 @@ const compactBarClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'bg-emerald-500 dark:bg-emerald-400'
-    case 'opus':
+    case 'claude':
       return 'bg-violet-500 dark:bg-violet-400'
     case 'window':
       return 'bg-sky-500 dark:bg-sky-400'
@@ -243,7 +243,7 @@ const compactLabelClass = computed(() => {
   switch (props.type) {
     case 'daily':
       return 'text-emerald-600 dark:text-emerald-300'
-    case 'opus':
+    case 'claude':
       return 'text-violet-600 dark:text-violet-300'
     case 'window':
       return 'text-sky-600 dark:text-sky-300'
@@ -269,7 +269,7 @@ const iconClass = computed(() => {
       case 'daily':
         colorClass = 'text-green-700 dark:text-green-400'
         break
-      case 'opus':
+      case 'claude':
         colorClass = 'text-purple-700 dark:text-purple-400'
         break
       case 'window':
@@ -285,7 +285,7 @@ const iconClass = computed(() => {
     case 'daily':
       iconName = 'fas fa-calendar-day'
       break
-    case 'opus':
+    case 'claude':
       iconName = 'fas fa-gem'
       break
     case 'window':
@@ -314,7 +314,7 @@ const labelTextClass = computed(() => {
     switch (props.type) {
       case 'daily':
         return 'text-gray-900 dark:text-gray-100'
-      case 'opus':
+      case 'claude':
         return 'text-purple-900 dark:text-purple-100'
       case 'window':
         return 'text-blue-900 dark:text-blue-100'
@@ -344,7 +344,7 @@ const currentValueClass = computed(() => {
       switch (props.type) {
         case 'daily':
           return 'text-green-800 dark:text-green-200'
-        case 'opus':
+        case 'claude':
           return 'text-purple-800 dark:text-purple-200'
         case 'window':
           return 'text-blue-800 dark:text-blue-200'

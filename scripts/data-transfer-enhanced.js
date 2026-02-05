@@ -158,8 +158,8 @@ async function exportUsageStats(keyId) {
       costDaily: {},
       costMonthly: {},
       costHourly: {},
-      opusTotal: null,
-      opusWeekly: {}
+      claudeTotal: null,
+      claudeWeekly: {}
     }
 
     // 导出总统计（Hash）
@@ -174,10 +174,10 @@ async function exportUsageStats(keyId) {
       stats.costTotal = costTotal
     }
 
-    // 导出 Opus 费用总统计（String）
-    const opusTotal = await redis.client.get(`usage:opus:total:${keyId}`)
-    if (opusTotal) {
-      stats.opusTotal = opusTotal
+    // 导出 Claude 费用总统计（String）
+    const claudeTotal = await redis.client.get(`usage:claude:total:${keyId}`)
+    if (claudeTotal) {
+      stats.claudeTotal = claudeTotal
     }
 
     // 导出每日统计（扫描现有 key，避免时区问题）
@@ -220,13 +220,13 @@ async function exportUsageStats(keyId) {
       }
     }
 
-    // 导出 Opus 周费用（扫描现有 key）
-    const opusWeeklyKeys = await redis.client.keys(`usage:opus:weekly:${keyId}:*`)
-    for (const key of opusWeeklyKeys) {
+    // 导出 Claude 周费用（扫描现有 key）
+    const claudeWeeklyKeys = await redis.client.keys(`usage:claude:weekly:${keyId}:*`)
+    for (const key of claudeWeeklyKeys) {
       const week = key.split(':').pop()
       const value = await redis.client.get(key)
       if (value) {
-        stats.opusWeekly[week] = value
+        stats.claudeWeekly[week] = value
       }
     }
 
@@ -319,9 +319,10 @@ async function importUsageStats(keyId, stats) {
       importCount++
     }
 
-    // 导入 Opus 费用总统计（String）
-    if (stats.opusTotal) {
-      pipeline.set(`usage:opus:total:${keyId}`, stats.opusTotal)
+    // 导入 Claude 费用总统计（String）- 兼容旧版 opusTotal 字段
+    const claudeTotalValue = stats.claudeTotal || stats.opusTotal
+    if (claudeTotalValue) {
+      pipeline.set(`usage:claude:total:${keyId}`, claudeTotalValue)
       importCount++
     }
 
@@ -361,10 +362,11 @@ async function importUsageStats(keyId, stats) {
       }
     }
 
-    // 导入 Opus 周费用（String，不加 TTL 保留历史全量）
-    if (stats.opusWeekly) {
-      for (const [week, value] of Object.entries(stats.opusWeekly)) {
-        pipeline.set(`usage:opus:weekly:${keyId}:${week}`, value)
+    // 导入 Claude 周费用（String，不加 TTL 保留历史全量）- 兼容旧版 opusWeekly 字段
+    const claudeWeeklyData = stats.claudeWeekly || stats.opusWeekly
+    if (claudeWeeklyData) {
+      for (const [week, value] of Object.entries(claudeWeeklyData)) {
+        pipeline.set(`usage:claude:weekly:${keyId}:${week}`, value)
         importCount++
       }
     }
