@@ -107,8 +107,8 @@ class WeeklyClaudeCostInitService {
       }
       logger.info(`💰 预加载 ${keyDataCache.size} 个 API Key 数据`)
 
-      // 推断账户类型的辅助函数（与运行时 recordOpusCost 一致，只统计 claude-official/claude-console/ccr）
-      const OPUS_ACCOUNT_TYPES = ['claude-official', 'claude-console', 'ccr']
+      // 推断账户类型的辅助函数（与运行时 recordOpusCost 口径一致，只统计 claude-official/claude-console/ccr）
+      const CLAUDE_WEEKLY_COST_ACCOUNT_TYPES = ['claude-official', 'claude-console', 'ccr']
       const inferAccountType = (keyData) => {
         if (keyData?.ccrAccountId) {
           return 'ccr'
@@ -212,7 +212,7 @@ class WeeklyClaudeCostInitService {
             const accountType = inferAccountType(keyData)
 
             // 与运行时 recordOpusCost 一致：只统计 claude-official/claude-console/ccr 账户
-            if (!accountType || !OPUS_ACCOUNT_TYPES.includes(accountType)) {
+            if (!accountType || !CLAUDE_WEEKLY_COST_ACCOUNT_TYPES.includes(accountType)) {
               continue
             }
 

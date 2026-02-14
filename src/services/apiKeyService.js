@@ -1568,7 +1568,7 @@ class ApiKeyService {
           `💰 Recorded cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
         )
 
-        // 记录 Opus 周费用（如果适用）
+        // 记录 Claude 周费用（如果适用）
         await this.recordOpusCost(keyId, ratedCost, realCost, model, accountType)
       } else {
         logger.debug(`💰 No cost recorded for ${keyId} - zero cost for model: ${model}`)
@@ -1643,7 +1643,7 @@ class ApiKeyService {
     }
   }
 
-  // 📊 记录 Opus 模型费用（仅限 claude 和 claude-console 账户）
+  // 📊 记录 Claude 周费用（字段与方法名沿用 Opus 命名以保持兼容）
   // ratedCost: 倍率后的成本（用于限额校验）
   // realCost: 真实成本（用于对账），如果不传则等于 ratedCost
   async recordOpusCost(keyId, ratedCost, realCost, model, accountType) {
@@ -1654,19 +1654,21 @@ class ApiKeyService {
       }
 
       // 判断是否为 claude-official、claude-console 或 ccr 账户
-      const opusAccountTypes = ['claude-official', 'claude-console', 'ccr']
-      if (!accountType || !opusAccountTypes.includes(accountType)) {
-        logger.debug(`⚠️ Skipping Opus cost recording for non-Claude account type: ${accountType}`)
+      const claudeWeeklyCostEligibleAccountTypes = ['claude-official', 'claude-console', 'ccr']
+      if (!accountType || !claudeWeeklyCostEligibleAccountTypes.includes(accountType)) {
+        logger.debug(
+          `⚠️ Skipping Claude weekly cost recording for non-Claude account type: ${accountType}`
+        )
         return // 不是 claude 账户，直接返回
       }
 
-      // 记录 Opus 周费用（倍率成本和真实成本）
+      // 记录 Claude 周费用（倍率成本和真实成本）
       await redis.incrementWeeklyOpusCost(keyId, ratedCost, realCost)
       logger.database(
-        `💰 Recorded Opus weekly cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
+        `💰 Recorded Claude weekly cost for ${keyId}: rated=$${ratedCost.toFixed(6)}, real=$${realCost.toFixed(6)}, model: ${model}`
       )
     } catch (error) {
-      logger.error('❌ Failed to record Opus weekly cost:', error)
+      logger.error('❌ Failed to record Claude weekly cost:', error)
     }
   }
 
@@ -1780,7 +1782,7 @@ class ApiKeyService {
           `💰 Recorded cost for ${keyId}: rated=$${ratedCostWithDetails.toFixed(6)}, real=$${realCostWithDetails.toFixed(6)}, model: ${model}`
         )
 
-        // 记录 Opus 周费用（如果适用，也应用倍率）
+        // 记录 Claude 周费用（如果适用，也应用倍率）
         await this.recordOpusCost(
           keyId,
           ratedCostWithDetails,
