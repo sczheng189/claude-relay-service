@@ -2,7 +2,7 @@ const redis = require('../models/redis')
 const logger = require('../utils/logger')
 const pricingService = require('./pricingService')
 const serviceRatesService = require('./serviceRatesService')
-const { isOpusModel } = require('../utils/modelHelper')
+const { isClaudeFamilyModel } = require('../utils/modelHelper')
 
 function pad2(n) {
   return String(n).padStart(2, '0')
@@ -151,7 +151,7 @@ class WeeklyClaudeCostInitService {
             }
             const keyId = match[1]
             const model = match[2]
-            if (!isOpusModel(model)) {
+            if (!isClaudeFamilyModel(model)) {
               continue
             }
             matchedClaudeKeys++
