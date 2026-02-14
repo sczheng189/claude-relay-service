@@ -4232,14 +4232,14 @@ const formatWindowTime = (seconds) => {
 //   return 'bg-green-500'
 // }
 
-// 获取 Opus 周费用进度 - 已移到 LimitBadge 组件中
+// 获取 Claude 周费用进度 - 已移到 LimitBadge 组件中
 // const getWeeklyOpusCostProgress = (key) => {
 //   if (!key.weeklyOpusCostLimit || key.weeklyOpusCostLimit === 0) return 0
 //   const percentage = ((key.weeklyOpusCost || 0) / key.weeklyOpusCostLimit) * 100
 //   return Math.min(percentage, 100)
 // }
 
-// 获取 Opus 周费用进度条颜色 - 已移到 LimitBadge 组件中
+// 获取 Claude 周费用进度条颜色 - 已移到 LimitBadge 组件中
 // const getWeeklyOpusCostProgressColor = (key) => {
 //   const progress = getWeeklyOpusCostProgress(key)
 //   if (progress >= 100) return 'bg-red-500'

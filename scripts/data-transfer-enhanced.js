@@ -174,7 +174,7 @@ async function exportUsageStats(keyId) {
       stats.costTotal = costTotal
     }
 
-    // 导出 Opus 费用总统计（String）
+    // 导出 Claude 费用总统计（String，字段名 opusTotal 保持兼容）
     const opusTotal = await redis.client.get(`usage:opus:total:${keyId}`)
     if (opusTotal) {
       stats.opusTotal = opusTotal
@@ -220,7 +220,7 @@ async function exportUsageStats(keyId) {
       }
     }
 
-    // 导出 Opus 周费用（扫描现有 key）
+    // 导出 Claude 周费用（扫描现有 key，字段名 opusWeekly 保持兼容）
     const opusWeeklyKeys = await redis.client.keys(`usage:opus:weekly:${keyId}:*`)
     for (const key of opusWeeklyKeys) {
       const week = key.split(':').pop()
@@ -319,7 +319,7 @@ async function importUsageStats(keyId, stats) {
       importCount++
     }
 
-    // 导入 Opus 费用总统计（String）
+    // 导入 Claude 费用总统计（String，字段名 opusTotal 保持兼容）
     if (stats.opusTotal) {
       pipeline.set(`usage:opus:total:${keyId}`, stats.opusTotal)
       importCount++
@@ -361,7 +361,7 @@ async function importUsageStats(keyId, stats) {
       }
     }
 
-    // 导入 Opus 周费用（String，不加 TTL 保留历史全量）
+    // 导入 Claude 周费用（String，不加 TTL 保留历史全量，字段名 opusWeekly 保持兼容）
     if (stats.opusWeekly) {
       for (const [week, value] of Object.entries(stats.opusWeekly)) {
         pipeline.set(`usage:opus:weekly:${keyId}:${week}`, value)

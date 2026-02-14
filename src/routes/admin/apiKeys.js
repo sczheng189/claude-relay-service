@@ -2178,7 +2178,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
       updates.totalCostLimit = costLimit
     }
 
-    // 处理 Opus 周费用限制
+    // 处理 Claude 周费用限制（字段名沿用 weeklyOpusCostLimit 保持兼容）
     if (
       weeklyOpusCostLimit !== undefined &&
       weeklyOpusCostLimit !== null &&
@@ -2189,7 +2189,7 @@ router.put('/api-keys/:keyId', authenticateAdmin, async (req, res) => {
       if (isNaN(costLimit) || costLimit < 0) {
         return res
           .status(400)
-          .json({ error: 'Weekly Opus cost limit must be a non-negative number' })
+          .json({ error: 'Weekly Claude cost limit must be a non-negative number' })
       }
       updates.weeklyOpusCostLimit = costLimit
     }

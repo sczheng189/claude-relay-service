@@ -2030,7 +2030,7 @@ class ClaudeAccountService {
       }
     }
 
-    // 7天Opus窗口
+    // 7天Sonnet窗口（字段名沿用 SevenDayOpus 保持兼容）
     if (usageData.seven_day_sonnet) {
       if (usageData.seven_day_sonnet.utilization !== undefined) {
         updates.claudeSevenDayOpusUtilization = String(usageData.seven_day_sonnet.utilization)

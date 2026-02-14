@@ -1279,7 +1279,7 @@ const authenticateApiKey = async (req, res, next) => {
             error: {
               type: 'insufficient_quota',
               message: `已达到 Claude 模型周费用限制 ($${weeklyClaudeCostLimit})`,
-              code: 'weekly_opus_cost_limit_exceeded'
+              code: 'weekly_claude_cost_limit_exceeded'
             },
             currentCost: weeklyClaudeCost,
             costLimit: weeklyClaudeCostLimit,

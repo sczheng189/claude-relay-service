@@ -401,7 +401,7 @@ const getOpusWeeklyCostProgressColor = () => {
   const progress = getOpusWeeklyCostProgress()
   if (progress >= 100) return 'bg-red-500'
   if (progress >= 80) return 'bg-yellow-500'
-  return 'bg-indigo-500' // 使用紫色表示Opus模型
+  return 'bg-indigo-500' // 使用紫色表示 Claude 模型周费用
 }
 
 // 格式化数字

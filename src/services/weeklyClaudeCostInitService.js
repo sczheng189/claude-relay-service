@@ -240,7 +240,7 @@ class WeeklyClaudeCostInitService {
         } while (cursor !== '0')
       }
 
-      // 为所有 API Key 写入本周 opus:weekly key
+      // 为所有 API Key 写入本周 Claude 周费用（opus:weekly key）
       const ttlSeconds = 14 * 24 * 3600
       for (let i = 0; i < keyIds.length; i += batchSize) {
         const batch = keyIds.slice(i, i + batchSize)

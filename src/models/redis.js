@@ -1753,19 +1753,19 @@ class RedisClient {
     }
   }
 
-  // 💰 获取本周 Opus 费用
+  // 💰 获取本周 Claude 费用（方法名沿用 Opus 保持兼容）
   async getWeeklyOpusCost(keyId) {
     const currentWeek = getWeekStringInTimezone()
     const costKey = `usage:opus:weekly:${keyId}:${currentWeek}`
     const cost = await this.client.get(costKey)
     const result = parseFloat(cost || 0)
     logger.debug(
-      `💰 Getting weekly Opus cost for ${keyId}, week: ${currentWeek}, key: ${costKey}, value: ${cost}, result: ${result}`
+      `💰 Getting weekly Claude cost for ${keyId}, week: ${currentWeek}, key: ${costKey}, value: ${cost}, result: ${result}`
     )
     return result
   }
 
-  // 💰 增加本周 Opus 费用（支持倍率成本和真实成本）
+  // 💰 增加本周 Claude 费用（支持倍率成本和真实成本，方法名沿用 Opus 保持兼容）
   // amount: 倍率后的成本（用于限额校验）
   // realAmount: 真实成本（用于对账），如果不传则等于 amount
   async incrementWeeklyOpusCost(keyId, amount, realAmount = null) {
@@ -1777,7 +1777,7 @@ class RedisClient {
     const actualRealAmount = realAmount !== null ? realAmount : amount
 
     logger.debug(
-      `💰 Incrementing weekly Opus cost for ${keyId}, week: ${currentWeek}, rated: $${amount}, real: $${actualRealAmount}`
+      `💰 Incrementing weekly Claude cost for ${keyId}, week: ${currentWeek}, rated: $${amount}, real: $${actualRealAmount}`
     )
 
     // 使用 pipeline 批量执行，提高性能
@@ -1791,10 +1791,10 @@ class RedisClient {
     pipeline.expire(realWeeklyKey, 14 * 24 * 3600)
 
     const results = await pipeline.exec()
-    logger.debug(`💰 Opus cost incremented successfully, new weekly total: $${results[0][1]}`)
+    logger.debug(`💰 Claude cost incremented successfully, new weekly total: $${results[0][1]}`)
   }
 
-  // 💰 覆盖设置本周 Opus 费用（用于启动回填/迁移）
+  // 💰 覆盖设置本周 Claude 费用（用于启动回填/迁移，方法名沿用 Opus 保持兼容）
   async setWeeklyOpusCost(keyId, amount, weekString = null) {
     const currentWeek = weekString || getWeekStringInTimezone()
     const weeklyKey = `usage:opus:weekly:${keyId}:${currentWeek}`
@@ -4638,7 +4638,7 @@ redisClient.batchGetApiKeyStats = async function (keyIds) {
     pipeline.get(`usage:cost:total:${keyId}`)
     // concurrency (1 zcard)
     pipeline.zcard(`concurrency:${keyId}`)
-    // weekly opus cost (1 get)
+    // weekly Claude cost (1 get)
     pipeline.get(`usage:opus:weekly:${keyId}:${currentWeek}`)
     // rate limit (4 get)
     pipeline.get(`rate_limit:requests:${keyId}`)
