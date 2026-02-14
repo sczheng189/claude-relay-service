@@ -9,7 +9,7 @@ const ClientValidator = require('../validators/clientValidator')
 const ClaudeCodeValidator = require('../validators/clients/claudeCodeValidator')
 const claudeRelayConfigService = require('../services/claudeRelayConfigService')
 const { calculateWaitTimeStats } = require('../utils/statsHelper')
-const { isOpusModel } = require('../utils/modelHelper')
+const { isClaudeFamilyModel } = require('../utils/modelHelper')
 
 // 工具函数
 function sleep(ms) {
@@ -1256,7 +1256,7 @@ const authenticateApiKey = async (req, res, next) => {
       const model = requestBody.model || ''
 
       // 判断是否为 Claude 模型
-      if (isOpusModel(model)) {
+      if (isClaudeFamilyModel(model)) {
         const weeklyOpusCost = validation.keyData.weeklyOpusCost || 0
 
         if (weeklyOpusCost >= weeklyOpusCostLimit) {
